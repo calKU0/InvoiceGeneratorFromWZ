@@ -1,9 +1,11 @@
-﻿namespace InvoiceGeneratorFromWZ.Contracts.Models
+﻿using InvoiceGeneratorFromWZ.Contracts.Data.Enums;
+
+namespace InvoiceGeneratorFromWZ.Contracts.Models
 {
     public class WZDocument
     {
         public string DocumentName { get; set; }
-        public int WZType { get; set; }
+        public WzDocumentType WZType { get; set; }
         public int WZCompany { get; set; }
         public int WZId { get; set; }
         public int WZNo { get; set; }

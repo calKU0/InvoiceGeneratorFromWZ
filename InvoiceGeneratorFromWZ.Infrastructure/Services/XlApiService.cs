@@ -3,6 +3,7 @@ using InvoiceGeneratorFromWZ.Contracts.Data.Enums;
 using InvoiceGeneratorFromWZ.Contracts.Models;
 using InvoiceGeneratorFromWZ.Contracts.Services;
 using InvoiceGeneratorFromWZ.Contracts.Settings;
+using InvoiceGeneratorFromWZ.Infrastructure.Mapping;
 using Microsoft.Extensions.Options;
 using System.Runtime.InteropServices;
 
@@ -74,7 +75,7 @@ namespace InvoiceGeneratorFromWZ.Infrastructure.Services
                     Wersja = _settings.ApiVersion,
 
                     Spinacz = 1,
-                    Typ = wzHeader.WZType == 2001 ? 2033 : (wzHeader.WZType == 2005 ? 2037 : 0),
+                    Typ = (int)InvoiceTypeMapper.MapWZTypeToInvoiceType(wzHeader.WZType),
                     Forma = wzHeader.PaymentNumber,
                     Termin = wzHeader.PaymentDueDate,
                     Opis = string.Join(" ", wzList.DistinctBy(d => d.Description).Select(d => d.Description)).Trim(),
@@ -101,7 +102,7 @@ namespace InvoiceGeneratorFromWZ.Infrastructure.Services
                     {
                         Wersja = _settings.ApiVersion,
 
-                        TrNTyp = wz.WZType,
+                        TrNTyp = (int)wz.WZType,
                         TrNFirma = wz.WZCompany,
                         TrNNumer = wz.WZId,
                         TrNLp = wz.WZNo,
