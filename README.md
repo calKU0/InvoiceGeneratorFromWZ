@@ -75,5 +75,5 @@ See [LICENSE](LICENSE) for details.
 
 ---
 
-© 2025-present [calKU0](https://github.com/calKU0)
+© 2026-present [calKU0](https://github.com/calKU0)
 
