@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="InvoiceGeneratorFromWZ.Contracts/InvoiceGeneratorFromWZ.Contracts.csproj" />
+  <Project Path="InvoiceGeneratorFromWZ.Infrastructure/InvoiceGeneratorFromWZ.Infrastructure.csproj" />
+  <Project Path="InvoiceGeneratorFromWZ.Service/InvoiceGeneratorFromWZ.Service.csproj" />
+</Solution>
