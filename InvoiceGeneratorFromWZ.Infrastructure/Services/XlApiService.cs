@@ -16,15 +16,14 @@ namespace InvoiceGeneratorFromWZ.Infrastructure.Services
 
         private readonly XlApiSettings _settings;
 
-        private int _sessionId;
-
         public XlApiService(IOptions<XlApiSettings> settings)
         {
             _settings = settings.Value;
         }
 
-        public void Login()
+        public int Login()
         {
+            int sessionId = 0;
             AttachThreadToClarion(1);
 
             CheckApiVersionCompatibility(_settings.ApiVersion);
@@ -39,22 +38,25 @@ namespace InvoiceGeneratorFromWZ.Infrastructure.Services
                 TrybWsadowy = 1
             };
 
-            int result = cdn_api.cdn_api.XLLogin(xLLoginInfo, ref _sessionId);
+            int result = cdn_api.cdn_api.XLLogin(xLLoginInfo, ref sessionId);
 
             if (result != 0)
             {
                 throw new Exception($"Login error. Code: {result}");
             }
+
+            return sessionId;
         }
 
-        public void Logout()
+        public void Logout(int sessionId)
         {
+            AttachThreadToClarion(1);
             XLLogoutInfo_20251 xLLogoutInfo = new XLLogoutInfo_20251
             {
                 Wersja = _settings.ApiVersion,
             };
 
-            int result = cdn_api.cdn_api.XLLogout(_sessionId);
+            int result = cdn_api.cdn_api.XLLogout(sessionId);
 
             if (result != 0)
             {
@@ -62,14 +64,15 @@ namespace InvoiceGeneratorFromWZ.Infrastructure.Services
             }
         }
 
-        public void CreateInvoice(List<WZDocument> wzList)
+        public void CreateInvoice(List<WZDocument> wzList, int sessionId)
         {
             try
             {
+                AttachThreadToClarion(1);
                 int documentId = 0;
                 var wzHeader = wzList.First();
 
-                ManageTransaction(0);
+                ManageTransaction(0, sessionId);
                 XLDokumentNagInfo_20251 document = new()
                 {
                     Wersja = _settings.ApiVersion,
@@ -92,7 +95,7 @@ namespace InvoiceGeneratorFromWZ.Infrastructure.Services
                     AdwLp = wzHeader.AddressNo,
                 };
 
-                int result = cdn_api.cdn_api.XLNowyDokument(_sessionId, ref documentId, document);
+                int result = cdn_api.cdn_api.XLNowyDokument(sessionId, ref documentId, document);
                 if (result != 0)
                     throw new Exception($"Error attempting to create invoice header: {CheckError(result, XlApiFunctionCode.NowyDokument)}");
 
@@ -123,13 +126,13 @@ namespace InvoiceGeneratorFromWZ.Infrastructure.Services
                 if (result != 0)
                     throw new Exception($"Error attempting to close binder: {CheckError(result, XlApiFunctionCode.ZamknijDokument)}");
 
-                ManageTransaction(1);
+                ManageTransaction(1, sessionId);
             }
             catch
             {
                 try
                 {
-                    ManageTransaction(2);
+                    ManageTransaction(2, sessionId);
                 }
                 catch { }
 
@@ -137,7 +140,7 @@ namespace InvoiceGeneratorFromWZ.Infrastructure.Services
             }
         }
 
-        private string ManageTransaction(int type, string token = "")
+        private string ManageTransaction(int type, int sessionId, string token = "")
         {
             XLTransakcjaInfo_20251 xLTransakcja = new XLTransakcjaInfo_20251
             {
@@ -148,7 +151,7 @@ namespace InvoiceGeneratorFromWZ.Infrastructure.Services
             {
                 xLTransakcja.Token = token;
             }
-            int result = cdn_api.cdn_api.XLTransakcja(_sessionId, xLTransakcja);
+            int result = cdn_api.cdn_api.XLTransakcja(sessionId, xLTransakcja);
 
             if (result != 1)
             {
@@ -177,6 +180,7 @@ namespace InvoiceGeneratorFromWZ.Infrastructure.Services
 
         private void CheckApiVersionCompatibility(Int32 APIVersion)
         {
+            AttachThreadToClarion(1);
             if (cdn_api.cdn_api.XLSprawdzWersje(ref APIVersion) != 0)
             {
                 throw new Exception("The current API version is not supported by the current XL version");

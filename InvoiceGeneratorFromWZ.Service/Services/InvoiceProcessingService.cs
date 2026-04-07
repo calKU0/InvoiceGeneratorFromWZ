@@ -1,6 +1,7 @@
 using InvoiceGeneratorFromWZ.Contracts.Repositories;
 using InvoiceGeneratorFromWZ.Contracts.Services;
-using Microsoft.Extensions.Logging;
+using InvoiceGeneratorFromWZ.Contracts.Settings;
+using Microsoft.Extensions.Options;
 
 namespace InvoiceGeneratorFromWZ.Service.Services
 {
@@ -9,51 +10,69 @@ namespace InvoiceGeneratorFromWZ.Service.Services
         private readonly IDocumentRespository _documentRepository;
         private readonly IXlApiService _xlApiService;
         private readonly ILogger<InvoiceProcessingService> _logger;
+        private readonly Dictionary<string, int> _wzGenerationStartHours;
+        private readonly int _fallbackStartHour;
 
-        public InvoiceProcessingService(IDocumentRespository documentRepository, IXlApiService xlApiService, ILogger<InvoiceProcessingService> logger)
+        public InvoiceProcessingService(
+            IDocumentRespository documentRepository,
+            IXlApiService xlApiService,
+            ILogger<InvoiceProcessingService> logger,
+            IOptions<List<WZGenerationTimes>> wzGenerationTimesOptions)
         {
             _documentRepository = documentRepository;
             _xlApiService = xlApiService;
             _logger = logger;
+
+            var generationTimes = wzGenerationTimesOptions.Value ?? [];
+            _fallbackStartHour = generationTimes.FirstOrDefault(x => x.IsFallback)?.StartHour ?? 18;
+
+            _wzGenerationStartHours = generationTimes
+                .Where(x => !x.IsFallback && !string.IsNullOrWhiteSpace(x.Courier))
+                .GroupBy(x => x.Courier.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().StartHour, StringComparer.OrdinalIgnoreCase);
         }
 
         public async Task ProcessInvoicesAsync()
         {
-            var documents = await _documentRepository.GetWZDocuments();
-            var today = DateTime.Now.Day;
-
-            // Filter out using the new encapsulated logic on the model
-            var toInvoice = documents.Where(d => d.ShouldInvoiceToday(today)).ToList();
-
-            if (!toInvoice.Any())
-            {
-                _logger.LogInformation("No documents to make invoice for day {Day}.", today);
-                return;
-            }
-
-            // Group: Acronym, Courier, PaymentType, PaymentDate, AddressId, ClientId
-            var grouped = toInvoice.GroupBy(d => new
-            {
-                d.ClientAcronym,
-                d.Courier,
-                d.PaymentNumber,
-                d.PaymentDueDate,
-                d.AddressId,
-                d.ClientId
-            }).ToList();
-
-            _logger.LogInformation("Found {Count} groups to process.", grouped.Count);
-
+            int xlSessionId = 0;
             try
             {
-                _xlApiService.Login();
+                var documents = await _documentRepository.GetWZDocuments();
+                var today = DateTime.Now.Day;
+                var currentHour = DateTime.Now.Hour;
+
+                var toInvoice = documents
+                    .Where(d => d.ShouldInvoiceToday(today))
+                    .Where(d => CanGenerateForCourier(d.Courier, currentHour))
+                    .ToList();
+
+                if (!toInvoice.Any())
+                {
+                    _logger.LogInformation("No documents found for invoicing at this time.");
+                    return;
+                }
+
+                // Group: Acronym, Courier, PaymentType, PaymentDate, AddressId, ClientId
+                var grouped = toInvoice.GroupBy(d => new
+                {
+                    d.ClientAcronym,
+                    d.Courier,
+                    d.PaymentNumber,
+                    d.PaymentDueDate,
+                    d.AddressId,
+                    d.ClientId
+                }).ToList();
+
+                _logger.LogInformation("Found {Count} groups to process.", grouped.Count);
+
+                xlSessionId = _xlApiService.Login();
 
                 foreach (var group in grouped)
                 {
                     try
                     {
                         var wzList = group.ToList();
-                        _xlApiService.CreateInvoice(wzList);
+                        _xlApiService.CreateInvoice(wzList, xlSessionId);
                         _logger.LogInformation("Created invoice for Client {Acronym}, Count {Docs}", group.Key.ClientAcronym, wzList.Count);
                     }
                     catch (Exception ex)
@@ -62,16 +81,47 @@ namespace InvoiceGeneratorFromWZ.Service.Services
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while processing invoices.");
+            }
             finally
             {
                 try
                 {
-                    _xlApiService.Logout();
+                    if (xlSessionId != 0)
+                        _xlApiService.Logout(xlSessionId);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    _logger.LogWarning(ex, "Failed to logout from XL API.");
                 }
             }
+        }
+
+        private bool CanGenerateForCourier(string courier, int currentHour)
+        {
+            if (string.IsNullOrWhiteSpace(courier))
+            {
+                return true;
+            }
+
+            var normalizedCourier = courier.Trim();
+
+            if (_wzGenerationStartHours.TryGetValue(normalizedCourier, out var directStartHour))
+            {
+                return currentHour >= directStartHour;
+            }
+
+            foreach (var configuredCourier in _wzGenerationStartHours)
+            {
+                if (normalizedCourier.Contains(configuredCourier.Key, StringComparison.OrdinalIgnoreCase))
+                {
+                    return currentHour >= configuredCourier.Value;
+                }
+            }
+
+            return currentHour >= _fallbackStartHour;
         }
     }
 }

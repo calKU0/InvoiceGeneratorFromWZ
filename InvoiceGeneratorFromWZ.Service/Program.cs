@@ -37,6 +37,7 @@ var host = Host.CreateDefaultBuilder(args)
 
         // Configuration
         services.Configure<AppSettings>(configuration.GetSection("AppSettings"));
+        services.Configure<List<WZGenerationTimes>>(configuration.GetSection("WZGenerationTimes"));
         services.Configure<XlApiSettings>(configuration.GetSection("XlApiSettings"));
 
         // Database context
