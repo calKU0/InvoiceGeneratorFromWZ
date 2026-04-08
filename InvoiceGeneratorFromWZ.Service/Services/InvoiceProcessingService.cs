@@ -34,7 +34,6 @@ namespace InvoiceGeneratorFromWZ.Service.Services
 
         public async Task ProcessInvoicesAsync()
         {
-            int xlSessionId = 0;
             try
             {
                 var documents = await _documentRepository.GetWZDocuments();
@@ -65,14 +64,12 @@ namespace InvoiceGeneratorFromWZ.Service.Services
 
                 _logger.LogInformation("Found {Count} groups to process.", grouped.Count);
 
-                xlSessionId = _xlApiService.Login();
-
                 foreach (var group in grouped)
                 {
                     try
                     {
                         var wzList = group.ToList();
-                        _xlApiService.CreateInvoice(wzList, xlSessionId);
+                        _xlApiService.CreateInvoice(wzList);
                         _logger.LogInformation("Created invoice for Client {Acronym}, Count {Docs}", group.Key.ClientAcronym, wzList.Count);
                     }
                     catch (Exception ex)
@@ -84,18 +81,6 @@ namespace InvoiceGeneratorFromWZ.Service.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "An error occurred while processing invoices.");
-            }
-            finally
-            {
-                try
-                {
-                    if (xlSessionId != 0)
-                        _xlApiService.Logout(xlSessionId);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to logout from XL API.");
-                }
             }
         }
 

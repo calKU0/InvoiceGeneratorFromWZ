@@ -50,7 +50,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddScoped<IDocumentRespository, DocumentRepository>();
 
         // Services
-        services.AddScoped<IXlApiService, XlApiService>();
+        services.AddSingleton<IXlApiService, XlApiService>();
         services.AddScoped<IInvoiceProcessingService, InvoiceProcessingService>();
 
         // Background worker
