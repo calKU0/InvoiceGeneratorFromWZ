@@ -2,6 +2,6 @@
 {
     internal class ServiceConstants
     {
-        internal const string ServiceName = "GaskaInvoiceGeneratorFromWZ";
+        internal const string ServiceName = "GenerowanieFakturZWZService";
     }
 }
