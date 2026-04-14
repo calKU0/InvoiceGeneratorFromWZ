@@ -51,7 +51,7 @@ namespace InvoiceGeneratorFromWZ.Service.Services
                     return;
                 }
 
-                // Group: Acronym, Courier, PaymentType, PaymentDate, AddressId, ClientId
+                // Group: Acronym, Courier, PaymentType, PaymentDate, AddressId, ClientId, WZType
                 var grouped = toInvoice.GroupBy(d => new
                 {
                     d.ClientAcronym,
@@ -59,7 +59,8 @@ namespace InvoiceGeneratorFromWZ.Service.Services
                     d.PaymentNumber,
                     d.PaymentDueDate,
                     d.AddressId,
-                    d.ClientId
+                    d.ClientId,
+                    d.WZType
                 }).ToList();
 
                 _logger.LogInformation("Found {Count} groups to process.", grouped.Count);
