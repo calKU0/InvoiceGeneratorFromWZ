@@ -26,9 +26,11 @@ namespace InvoiceGeneratorFromWZ.Contracts.Models
         public int ClientId { get; set; }
         public int ClientNo { get; set; }
 
+        public int? OrgInvoice { get; set; }
+
         public string DaysWhenMakeInvoice { get; set; }
 
-        public bool ShouldInvoiceToday(int day) 
+        public bool ShouldInvoiceToday(int day)
         {
             if (string.IsNullOrWhiteSpace(DaysWhenMakeInvoice)) return false;
             return DaysWhenMakeInvoice.Split(',').Select(s => s.Trim()).Contains(day.ToString());

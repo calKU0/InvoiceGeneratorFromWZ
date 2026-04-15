@@ -60,7 +60,8 @@ namespace InvoiceGeneratorFromWZ.Service.Services
                     d.PaymentDueDate,
                     d.AddressId,
                     d.ClientId,
-                    d.WZType
+                    d.WZType,
+                    d.OrgInvoice
                 }).ToList();
 
                 _logger.LogInformation("Found {Count} groups to process.", grouped.Count);
@@ -71,7 +72,7 @@ namespace InvoiceGeneratorFromWZ.Service.Services
                     {
                         var wzList = group.ToList();
                         _xlApiService.CreateInvoice(wzList);
-                        _logger.LogInformation("Created invoice for Client {Acronym}, Count {Docs}", group.Key.ClientAcronym, wzList.Count);
+                        _logger.LogInformation("Created invoice for Client {Acronym}, WZ Count {Docs}", group.Key.ClientAcronym, wzList.Count);
                     }
                     catch (Exception ex)
                     {
@@ -87,11 +88,6 @@ namespace InvoiceGeneratorFromWZ.Service.Services
 
         private bool CanGenerateForCourier(string courier, int currentHour)
         {
-            if (string.IsNullOrWhiteSpace(courier))
-            {
-                return true;
-            }
-
             var normalizedCourier = courier.Trim();
 
             if (_wzGenerationStartHours.TryGetValue(normalizedCourier, out var directStartHour))

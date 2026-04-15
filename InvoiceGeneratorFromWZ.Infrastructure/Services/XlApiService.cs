@@ -106,7 +106,7 @@ namespace InvoiceGeneratorFromWZ.Infrastructure.Services
 
                     result = cdn_api.cdn_api.XLDodajDoSpinacza(documentId, documentPosition);
                     if (result != 0)
-                        throw new Exception($"Error attempting to create invoice position: {CheckError(result, XlApiFunctionCode.DodajDoSpinacza)}");
+                        throw new Exception($"Error attempting to create invoice position {wz.DocumentName}: {CheckError(result, XlApiFunctionCode.DodajDoSpinacza)}");
                 }
 
                 XLZamkniecieDokumentuInfo_20251 closeDocument = new()
